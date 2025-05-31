@@ -1,0 +1,31 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 34.227.104.4 >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh -i ~/.ssh/id_rsa ubuntu@34.227.104.4 << 'EOF'
+            cd ci-cd-demo4 || git clone https://github.com/Ashutosh245-arch/ci-cd-demo4.git && cd ci-cd-demo4
+            git pull origin main
+            chmod +x mvnw
+            ./mvnw clean package
+            pkill -f 'java' || true
+            nohup java -jar target/*.jar > app.log 2>&1 &
+          EOF
